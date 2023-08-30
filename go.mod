@@ -9,6 +9,7 @@ require (
 	github.com/kilic/bls12-381 v0.1.0
 	github.com/leanovate/gopter v0.2.9
 	github.com/stretchr/testify v1.8.2
+	github.com/jiajunxin/rsa_accumulator v0.1.0
 )
 
 require (
@@ -79,4 +80,8 @@ require (
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
+)
+
+replace (
+	github.com/jiajunxin/rsa_accumulator => ../rsa_accumulator
 )

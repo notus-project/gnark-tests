@@ -2,6 +2,9 @@ package solidity
 
 import (
 	"bytes"
+	"context"
+	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"testing"
@@ -12,6 +15,7 @@ import (
 	"github.com/consensys/gnark/examples/cubic"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,6 +38,8 @@ type ExportSolidityTestSuiteGroth16 struct {
 	pk      groth16.ProvingKey
 	circuit cubic.Circuit
 	r1cs    constraint.ConstraintSystem
+
+	address common.Address
 }
 
 func TestRunExportSolidityTestSuiteGroth16(t *testing.T) {
@@ -55,7 +61,8 @@ func (t *ExportSolidityTestSuiteGroth16) SetupTest() {
 	t.backend = backends.NewSimulatedBackend(genesis, gasLimit)
 
 	// deploy verifier contract
-	_, _, v, err := DeployVerifier(auth, t.backend)
+	addr, _, v, err := DeployVerifier(auth, t.backend)
+	t.address = addr
 	t.NoError(err, "deploy verifier contract failed")
 	t.verifierContract = v
 	t.backend.Commit()
@@ -127,6 +134,26 @@ func (t *ExportSolidityTestSuiteGroth16) TestVerifyProof() {
 
 	// public witness
 	input[0] = new(big.Int).SetUint64(35)
+
+	//------
+	snarkInput := make([]interface{}, 0)
+	snarkInput = append(snarkInput, a)
+	snarkInput = append(snarkInput, b)
+	snarkInput = append(snarkInput, c)
+	snarkInput = append(snarkInput, input)
+	//snarkInput = {a, b, c, input}
+	parsed, err := VerifierMetaData.GetAbi()
+	data, err := parsed.Pack("verifyProof", snarkInput...)
+	if err != nil {
+		panic(err)
+	}
+	msg := ethereum.CallMsg{From: bind.CallOpts{}.From, To: &t.address, Data: data}
+	gasLimit, err := t.backend.EstimateGas(context.Background(), msg)
+	if err != nil {
+		log.Fatalf("Failed to estimate gas needed: %v", err)
+	}
+	fmt.Println("Gas Limit:", gasLimit)
+	//------
 
 	// call the contract
 	res, err := t.verifierContract.VerifyProof(&bind.CallOpts{}, a, b, c, input)
